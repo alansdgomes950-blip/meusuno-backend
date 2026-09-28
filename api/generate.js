@@ -1,6 +1,4 @@
 // Vercel Serverless Function - MeuSuno + Mureka
-// Coloque sua chave no Vercel em: Settings > Environment Variables > MUREKA_API_KEY
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -11,17 +9,27 @@ export default async function handler(req, res) {
   const apiKey = process.env.MUREKA_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'MUREKA_API_KEY não configurada no Vercel' });
 
-  const { title, lyrics, style, voice, bpm, instruments, prompt, model } = req.body || {};
+  const body = req.body || {};
+  // aceita tanto português quanto inglês
+  const title = body.title || body.título || body.titulo || 'Minha música';
+  const lyrics = body.lyrics || body.letra;
+  const style = body.style || body.estilo || 'Worship intimista';
+  const voice = body.voice || body.voz || 'Feminina';
+  const bpm = body.bpm || 72;
+  const instruments = body.instruments || body.instrumentos || [];
+  const promptExtra = body.prompt || '';
+  const model = body.model || 'mureka-7';
+
   if (!lyrics) return res.status(400).json({ error: 'Letra é obrigatória' });
 
   const musicPrompt = [
-    `Style: ${style || 'Worship intimista'}`,
-    `Voice: ${voice || 'Masculina'}`,
-    `Tempo: ${bpm || 74} BPM`,
-    `Instruments: ${(instruments || []).join(', ')}`,
-    prompt ? `Direction: ${prompt}` : '',
-    `Title: ${title || 'Minha música'}`
-  ].filter(Boolean).join('. ');
+    `Style: ${style}`,
+    `Voice: ${voice}`,
+    `Tempo: ${bpm} BPM`,
+    `Instruments: ${Array.isArray(instruments) ? instruments.join(', ') : instruments}`,
+    promptExtra ? `Direction: ${promptExtra}` : '',
+    `Title: ${title}`
+  ].filter(Boolean).join('. ').slice(0, 1024);
 
   try {
     const genRes = await fetch('https://api.mureka.ai/v1/song/generate', {
@@ -31,9 +39,8 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: model || 'mureka-v6',
+        lyrics: String(lyrics).slice(0, 5000),
         prompt: musicPrompt,
-        lyrics: lyrics,
       })
     });
 
